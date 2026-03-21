@@ -10,6 +10,7 @@ import {
   Settings,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -119,6 +120,13 @@ export default function DashboardLayout({
         </div>
         <div className="mt-auto p-5">
           <WeekSummary />
+          <button
+            onClick={() => { window.location.href = "/api/auth/logout"; }}
+            className="mt-4 flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm text-[#6B6B6B] hover:bg-[#FFEBEE] hover:text-red-600 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
         </div>
       </aside>
 
