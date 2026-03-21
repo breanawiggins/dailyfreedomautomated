@@ -32,11 +32,11 @@ export function buildImagePrompt(
   const womanClause = hasWoman
     ? "faceless woman seen from behind, "
     : "";
-  return `${setting}, warm neutral tones, soft natural light, cozy and aspirational, ${womanClause}shot from behind/above/side, no text, cinematic lifestyle photography, cream and warm beige palette, ${timeOfDay}, ultra realistic, 4k`;
+  return `${setting}, warm neutral tones, soft natural light, cozy and aspirational, ${womanClause}shot from behind/above/side, no text, cinematic lifestyle photography, cream and warm beige palette, ${timeOfDay}, ultra realistic, 4k, muted and slightly desaturated, film photography aesthetic, cooler warm tones not orange, soft not harsh golden light, subject in lower third of frame, large negative space in upper half for text overlay, editorial composition`;
 }
 
 export function buildVideoPrompt(setting: string): string {
-  return `${setting}, gentle ambient motion, slow zoom or subtle camera drift, warm natural light, cozy and cinematic, no text, lifestyle reel aesthetic, faceless, soft life vibes`;
+  return `${setting}, gentle ambient motion, slow zoom or subtle camera drift, warm natural light, cozy and cinematic, no text, lifestyle reel aesthetic, faceless, soft life vibes, muted and slightly desaturated, film photography aesthetic, cooler warm tones not orange, soft not harsh golden light`;
 }
 
 // ---------------------------------------------------------------------------
