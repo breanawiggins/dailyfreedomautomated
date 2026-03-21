@@ -145,7 +145,9 @@ export default function ContentCard({
           </span>
         </div>
         {scheduleTime && (
-          <span className="text-xs text-[#6B6B6B]">{scheduleTime}</span>
+          <span className={`text-xs ${piece.status === "scheduled" ? "text-[#1565C0] font-medium" : "text-[#6B6B6B]"}`}>
+            {scheduleTime}
+          </span>
         )}
       </div>
 
@@ -258,24 +260,37 @@ export default function ContentCard({
 
       {/* Actions */}
       <div className="px-4 pb-3 flex items-center gap-2">
-        <Button
-          size="sm"
-          className="bg-[#2E7D32]/10 text-[#2E7D32] hover:bg-[#2E7D32]/20 border-0"
-          onClick={() => onApprove(piece.id)}
-          disabled={piece.status === "approved"}
-        >
-          <Check className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline ml-1">Approve</span>
-        </Button>
-        <Button
-          size="sm"
-          className="bg-[#C62828]/10 text-[#C62828] hover:bg-[#C62828]/20 border-0"
-          onClick={() => onReject(piece.id)}
-          disabled={piece.status === "rejected"}
-        >
-          <X className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline ml-1">Reject</span>
-        </Button>
+        {piece.status === "scheduled" ? (
+          <Button
+            size="sm"
+            className="bg-[#C62828]/10 text-[#C62828] hover:bg-[#C62828]/20 border-0"
+            onClick={() => onReject(piece.id)}
+          >
+            <X className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline ml-1">Unschedule</span>
+          </Button>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              className="bg-[#2E7D32]/10 text-[#2E7D32] hover:bg-[#2E7D32]/20 border-0"
+              onClick={() => onApprove(piece.id)}
+              disabled={piece.status === "approved"}
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline ml-1">Approve</span>
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#C62828]/10 text-[#C62828] hover:bg-[#C62828]/20 border-0"
+              onClick={() => onReject(piece.id)}
+              disabled={piece.status === "rejected"}
+            >
+              <X className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline ml-1">Reject</span>
+            </Button>
+          </>
+        )}
         <Button
           size="sm"
           variant="ghost"

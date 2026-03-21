@@ -94,13 +94,22 @@ export default function ContentQueuePage() {
   }
 
   async function handleApprove(id: string) {
-    await fetch("/api/content/approve", {
+    const res = await fetch("/api/content/approve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contentPieceId: id }),
     });
+    const result = await res.json();
     setPieces((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: "approved" as const } : p))
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              status: result.scheduled ? ("scheduled" as const) : ("approved" as const),
+              buffer_post_id: result.buffer_post_id || p.buffer_post_id,
+            }
+          : p
+      )
     );
   }
 
@@ -111,7 +120,11 @@ export default function ContentQueuePage() {
       body: JSON.stringify({ contentPieceId: id }),
     });
     setPieces((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: "rejected" as const } : p))
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, status: "rejected" as const, buffer_post_id: null }
+          : p
+      )
     );
   }
 
@@ -138,11 +151,8 @@ export default function ContentQueuePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contentPieceIds: ids }),
     });
-    setPieces((prev) =>
-      prev.map((p) =>
-        ids.includes(p.id) ? { ...p, status: "approved" as const } : p
-      )
-    );
+    // Refetch to get accurate scheduled/approved states
+    await fetchContent();
     setSelectedIds(new Set());
   }
 
@@ -216,6 +226,7 @@ export default function ContentQueuePage() {
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="approved">Approved</TabsTrigger>
+            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
         </Tabs>
