@@ -1,7 +1,7 @@
 // Content Pipeline Types for DailyFreedomAutomated
 
 export type ContentType = "reel" | "carousel" | "single_image";
-export type ContentStatus = "draft" | "approved" | "rejected" | "scheduled";
+export type ContentStatus = "draft" | "asset_ready" | "composed" | "approved" | "rejected" | "scheduled";
 export type BatchStatus = "generating" | "ready" | "partial";
 
 export interface ContentBatch {
