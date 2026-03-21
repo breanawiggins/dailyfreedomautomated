@@ -76,20 +76,23 @@ async function renderComposition(composition: RenderComposition): Promise<string
 // Template helpers
 // ---------------------------------------------------------------------------
 
-function bgImage(source: string): CreatomateElement {
-  return { type: "image", source, width: "100%", height: "100%" };
-}
-
-function bgVideo(source: string): CreatomateElement {
-  return { type: "video", source, width: "100%", height: "100%" };
-}
-
-function overlay(opacity: number): CreatomateElement {
+function bgImage(source: string, overlayOpacity = 0.45): CreatomateElement {
   return {
-    type: "rectangle",
+    type: "image",
+    source,
     width: "100%",
     height: "100%",
-    fill_color: `rgba(0,0,0,${opacity})`,
+    color_overlay: `rgba(0,0,0,${overlayOpacity})`,
+  };
+}
+
+function bgVideo(source: string, overlayOpacity = 0.45): CreatomateElement {
+  return {
+    type: "video",
+    source,
+    width: "100%",
+    height: "100%",
+    color_overlay: `rgba(0,0,0,${overlayOpacity})`,
   };
 }
 
@@ -161,8 +164,7 @@ export async function composeReel(
     width: 1080,
     height: 1920,
     elements: [
-      bgVideo(videoUrl),
-      overlay(0.45),
+      bgVideo(videoUrl, 0.45),
       textEl(hookText, {
         font_family: "Caveat",
         font_size: "76 px",
@@ -185,8 +187,7 @@ export async function composeCarouselCoverSlide(
   subtext: string
 ): Promise<string> {
   const elements: CreatomateElement[] = [
-    bgImage(imageUrl),
-    overlay(0.45),
+    bgImage(imageUrl, 0.45),
     // sparkle decoration
     textEl("✦", {
       font_family: "Caveat",
@@ -247,8 +248,7 @@ export async function composeCarouselBodySlide(
   totalSlides: number
 ): Promise<string> {
   const elements: CreatomateElement[] = [
-    bgImage(imageUrl),
-    overlay(0.45),
+    bgImage(imageUrl, 0.45),
     // body text — left-aligned, vertically centered
     textEl(bodyText, {
       font_family: "Caveat",
@@ -287,8 +287,7 @@ export async function composeCarouselStepSlide(
     width: 1080,
     height: 1350,
     elements: [
-      bgImage(imageUrl),
-      overlay(0.45),
+      bgImage(imageUrl, 0.45),
       // step label
       textEl(`STEP ${stepNumber}`, {
         font_family: "Montserrat",
@@ -338,8 +337,7 @@ export async function composeCarouselCTASlide(
     width: 1080,
     height: 1350,
     elements: [
-      bgImage(imageUrl),
-      overlay(0.35),
+      bgImage(imageUrl, 0.35),
       // setup line
       textEl(setupLine, {
         font_family: "Caveat",
@@ -382,8 +380,7 @@ export async function composeSingleImagePost(
   secondLine?: string
 ): Promise<string> {
   const elements: CreatomateElement[] = [
-    bgImage(imageUrl),
-    overlay(0.3),
+    bgImage(imageUrl, 0.30),
     // quote text
     textEl(quoteText, {
       font_family: "Playfair Display",
