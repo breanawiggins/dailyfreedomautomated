@@ -3,6 +3,9 @@ import { createServiceClient } from "@/lib/supabase";
 import { generateWeeklyBatch } from "@/lib/claude";
 import type { NicheSettings } from "@/types";
 
+// Force dynamic — never statically generate this route
+export const dynamic = "force-dynamic";
+
 const DAY_OFFSETS: Record<string, number> = {
   Monday: 0,
   Tuesday: 1,
