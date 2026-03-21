@@ -29,6 +29,7 @@ export interface ContentPiece {
   post_time: string | null;
   content_subtype: string | null;
   image_style: string | null;
+  audio_url: string | null;
 }
 
 export interface NicheSettings {

@@ -161,30 +161,41 @@ function swipeArrow(): CreatomateElement {
 /** REEL — 1080×1920 mp4, video bg + overlay + hook text */
 export async function composeReel(
   videoUrl: string,
-  hookText: string
+  hookText: string,
+  audioUrl?: string
 ): Promise<string> {
   // Adaptive font size: 92px for short hooks, 78px for long ones
   const fontSize = hookText.length > 75 ? "78 px" : "92 px";
+
+  const elements: CreatomateElement[] = [
+    bgVideo(videoUrl, 0.45),
+    textEl(hookText, {
+      font_family: "Caveat",
+      font_size: fontSize,
+      x: "50%",
+      y: "45%",
+      width: "88%",
+      text_alignment: "center",
+      shadow_color: "rgba(0,0,0,0.60)",
+      shadow_blur: "12 px",
+      line_height: "150%",
+      letter_spacing: "2%",
+    }),
+  ];
+
+  if (audioUrl) {
+    elements.push({
+      type: "audio",
+      source: audioUrl,
+      volume: 0.7,
+    });
+  }
 
   return renderComposition({
     output_format: "mp4",
     width: 1080,
     height: 1920,
-    elements: [
-      bgVideo(videoUrl, 0.45),
-      textEl(hookText, {
-        font_family: "Caveat",
-        font_size: fontSize,
-        x: "50%",
-        y: "45%",
-        width: "88%",
-        text_alignment: "center",
-        shadow_color: "rgba(0,0,0,0.60)",
-        shadow_blur: "12 px",
-        line_height: "150%",
-        letter_spacing: "2%",
-      }),
-    ],
+    elements,
   });
 }
 
@@ -205,21 +216,33 @@ export async function composeCarouselCoverSlide(
       height: "1 px",
       fill_color: "rgba(255,255,255,0.40)",
       x: "50%",
-      y: "24%",
+      y: "22%",
       x_alignment: "50%",
       y_alignment: "50%",
     } as CreatomateElement,
-    // main headline — Playfair Display italic at 35% from top
+    // main headline — Playfair Display italic at 30% from top
     textEl(headlineScript, {
       font_family: "Playfair Display",
       font_style: "italic",
-      font_size: "96 px",
+      font_size: "88 px",
       x: "50%",
-      y: "35%",
+      y: "30%",
       width: "85%",
       text_alignment: "center",
       line_height: "130%",
     }),
+    // thin divider line between headline and subtitle
+    {
+      type: "shape",
+      path: "M 0 0 L 1 0",
+      width: "100 px",
+      height: "1 px",
+      fill_color: "rgba(255,255,255,0.30)",
+      x: "50%",
+      y: "48%",
+      x_alignment: "50%",
+      y_alignment: "50%",
+    } as CreatomateElement,
     // thin decorative line below headline
     {
       type: "shape",
@@ -228,24 +251,24 @@ export async function composeCarouselCoverSlide(
       height: "1 px",
       fill_color: "rgba(255,255,255,0.40)",
       x: "50%",
-      y: "46%",
+      y: "42%",
       x_alignment: "50%",
       y_alignment: "50%",
     } as CreatomateElement,
-    // secondary headline — 60px below main headline (~55% from top)
+    // secondary headline — Montserrat bold at 58% from top
     textEl(headlineFactual, {
       font_family: "Montserrat",
       font_weight: "bold",
-      font_size: "48 px",
+      font_size: "38 px",
       x: "50%",
-      y: "55%",
+      y: "58%",
       width: "85%",
       text_alignment: "center",
     }),
     // subtext at 75% from top
     textEl(subtext, {
       font_family: "Caveat",
-      font_size: "42 px",
+      font_size: "40 px",
       fill_color: "rgba(255,255,255,0.85)",
       x: "50%",
       y: "75%",
@@ -276,7 +299,7 @@ export async function composeCarouselBodySlide(
     // body text — left-aligned, vertically centered, 40px padding via reduced width
     textEl(bodyText, {
       font_family: "Caveat",
-      font_size: "62 px",
+      font_size: "68 px",
       x: "50%",
       y: "50%",
       width: "88%",
@@ -339,7 +362,7 @@ export async function composeCarouselStepSlide(
       // bullets
       textEl(bulletText, {
         font_family: "Caveat",
-        font_size: "48 px",
+        font_size: "54 px",
         x: "50%",
         y: "58%",
         width: "85%",
@@ -357,6 +380,14 @@ function truncate(text: string, maxLen: number): string {
   return text.slice(0, maxLen - 1).trim() + "…";
 }
 
+// Truncate at last complete word boundary (no ellipsis)
+function truncateAtWord(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  const trimmed = text.slice(0, maxLen);
+  const lastSpace = trimmed.lastIndexOf(" ");
+  return lastSpace > 0 ? trimmed.slice(0, lastSpace) : trimmed;
+}
+
 /** CAROUSEL CTA SLIDE — 1080×1350 jpg, lighter overlay */
 export async function composeCarouselCTASlide(
   imageUrl: string,
@@ -367,7 +398,7 @@ export async function composeCarouselCTASlide(
   // Hard truncate all text — never overflow
   const safeSetup = truncate(setupLine, 55);
   const safeKeyword = truncate(`COMMENT "${keyword}"`, 30);
-  const safeSub = truncate(subtext, 75);
+  const safeSub = truncateAtWord(subtext, 65);
 
   return renderComposition({
     output_format: "jpg",

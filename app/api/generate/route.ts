@@ -97,6 +97,11 @@ export async function POST(request: NextRequest) {
     if (batchType === "weekly") {
       const batch = await generateWeeklyBatch(settings);
 
+      // Hard cap at 21 pieces — truncate if Claude returned more
+      if (batch.pieces.length > 21) {
+        batch.pieces = batch.pieces.slice(0, 21);
+      }
+
       const supabase = createServiceClient();
       const { data: batchRow, error: batchError } = await supabase
         .from("content_batches")
@@ -104,7 +109,7 @@ export async function POST(request: NextRequest) {
           week_of: batch.week_of,
           niche: settings.name,
           status: "ready",
-          total_pieces: batch.pieces.length,
+          total_pieces: 21,
         })
         .select()
         .single();

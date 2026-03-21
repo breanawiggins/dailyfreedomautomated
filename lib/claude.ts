@@ -170,7 +170,9 @@ ${SINGLE_IMAGE_FORMAT}
 
 ${WEEKLY_SCHEDULE}
 
-Generate a weekly content batch of exactly 21 pieces following the schedule above precisely. Each piece must use a DIFFERENT hook formula — rotate through all 10 formulas and repeat as needed across 21 pieces.
+Generate EXACTLY 21 pieces — no more, no fewer. Follow the schedule above precisely. Each piece must use a DIFFERENT hook formula — rotate through all 10 formulas and repeat as needed across 21 pieces.
+
+CTA subtext must be maximum 60 characters. Keep it punchy. Example: "and I'll send you my free content blueprint"
 
 Be concise — short hooks, tight copy, no fluff. We need all 21 pieces to fit.
 

@@ -15,6 +15,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Music,
+  Play,
+  Upload,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 const statusBorderColor: Record<string, string> = {
@@ -31,8 +35,8 @@ const statusBadge: Record<string, { bg: string; text: string; label: string }> =
   rejected: { bg: "#FFEBEE", text: "#C62828", label: "Rejected" },
   scheduled: { bg: "#E3F2FD", text: "#1565C0", label: "Scheduled" },
   composed: { bg: "#FFF8E1", text: "#F57F17", label: "Pending" },
-  draft: { bg: "#FFF8E1", text: "#F57F17", label: "Draft" },
-  asset_ready: { bg: "#FFF8E1", text: "#F57F17", label: "Assets Ready" },
+  draft: { bg: "#FFF8E1", text: "#F57F17", label: "Pending" },
+  asset_ready: { bg: "#FFF8E1", text: "#F57F17", label: "Pending" },
 };
 
 const typeIcon: Record<string, React.ReactNode> = {
@@ -46,6 +50,22 @@ const typeLabel: Record<string, string> = {
   carousel: "Carousel",
   single_image: "Single Image",
 };
+
+const pillarColors: Record<string, { bg: string; text: string }> = {
+  "Proof + Story": { bg: "#FEE2E2", text: "#DC2626" },
+  "Proof+Story": { bg: "#FEE2E2", text: "#DC2626" },
+  "Grow the Page": { bg: "#DCFCE7", text: "#16A34A" },
+  "AI + Automation": { bg: "#DBEAFE", text: "#2563EB" },
+  "AI+Auto": { bg: "#DBEAFE", text: "#2563EB" },
+  motivational: { bg: "#FEF3C7", text: "#D97706" },
+};
+
+function getPillar(piece: ContentPiece): string | null {
+  if (!piece.copy || Array.isArray(piece.copy)) return null;
+  const copy = piece.copy as Record<string, unknown>;
+  if (typeof copy.content_pillar === "string") return copy.content_pillar;
+  return null;
+}
 
 interface ContentCardProps {
   piece: ContentPiece;
@@ -66,9 +86,12 @@ export default function ContentCard({
 }: ContentCardProps) {
   const [editingHook, setEditingHook] = useState(false);
   const [hookText, setHookText] = useState(piece.hook);
-  const [audioNote, setAudioNote] = useState(piece.notes || "");
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(piece.audio_url || "");
+  const [audioUploading, setAudioUploading] = useState(false);
+  const [audioRerendering, setAudioRerendering] = useState(false);
+  const [audioFilename, setAudioFilename] = useState("");
 
   const borderColor = statusBorderColor[piece.status] || "#E0E0E0";
   const badge = statusBadge[piece.status] || statusBadge.draft;
@@ -105,15 +128,6 @@ export default function ContentCard({
     setSaving(false);
   }
 
-  async function saveAudioNote() {
-    setSaving(true);
-    await fetch("/api/content/audio-note", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contentPieceId: piece.id, audioNote }),
-    });
-    setSaving(false);
-  }
 
   return (
     <div
@@ -152,6 +166,14 @@ export default function ContentCard({
       </div>
 
       {/* Preview area */}
+      {previewUrls.length === 0 && piece.type === "reel" && (
+        <div className="relative aspect-[4/5] bg-gradient-to-b from-[#2A2A2A] to-[#1A1A1A] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-white/40">
+            <Play className="w-12 h-12" />
+            <span className="text-xs">Video pending</span>
+          </div>
+        </div>
+      )}
       {previewUrls.length > 0 && (
         <div className="relative aspect-[4/5] bg-[#F5F5F5] overflow-hidden">
           {isVideo ? (
@@ -231,29 +253,127 @@ export default function ContentCard({
           </div>
         ) : (
           <p className="text-sm text-[#1A1A1A] font-medium leading-snug">
-            {piece.hook?.length > 100
-              ? piece.hook.slice(0, 100) + "..."
+            {piece.hook?.length > 80
+              ? piece.hook.slice(0, 80) + "..."
               : piece.hook}
           </p>
         )}
 
-        {piece.content_subtype && (
-          <span className="inline-block mt-2 text-xs text-[#C9A96E] bg-[#C9A96E]/10 px-2 py-0.5 rounded-full">
-            {piece.content_subtype}
-          </span>
-        )}
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          {piece.content_subtype && (
+            <span className="inline-block text-xs text-[#C9A96E] bg-[#C9A96E]/10 px-2 py-0.5 rounded-full">
+              {piece.content_subtype}
+            </span>
+          )}
+          {(() => {
+            const pillar = getPillar(piece);
+            if (!pillar) return null;
+            const colors = pillarColors[pillar];
+            if (!colors) return null;
+            return (
+              <span
+                className="inline-block text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ backgroundColor: colors.bg, color: colors.text }}
+              >
+                {pillar}
+              </span>
+            );
+          })()}
+        </div>
 
-        {/* Audio note for reels */}
+        {/* Audio upload for reels */}
         {piece.type === "reel" && (
-          <div className="mt-3 flex items-center gap-2">
-            <Music className="w-3.5 h-3.5 text-[#6B6B6B] flex-shrink-0" />
-            <Input
-              placeholder="Audio note..."
-              value={audioNote}
-              onChange={(e) => setAudioNote(e.target.value)}
-              onBlur={saveAudioNote}
-              className="text-xs h-7"
-            />
+          <div className="mt-3">
+            {audioRerendering ? (
+              <div className="flex items-center gap-2 text-xs text-[#6B6B6B]">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Re-rendering with audio...
+              </div>
+            ) : audioUrl && piece.composed_urls?.length > 0 ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[#2E7D32] font-medium flex items-center gap-1">
+                  <Music className="w-3 h-3" /> Audio included
+                </span>
+                <label className="text-xs text-[#6B6B6B] cursor-pointer hover:text-[#1A1A1A]">
+                  Replace
+                  <input
+                    type="file"
+                    accept=".mp3,.m4a,.wav"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setAudioUploading(true);
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      formData.append("contentPieceId", piece.id);
+                      const res = await fetch("/api/content/upload-audio", { method: "POST", body: formData });
+                      const data = await res.json();
+                      if (data.audioUrl) {
+                        setAudioUrl(data.audioUrl);
+                        setAudioFilename(file.name);
+                      }
+                      setAudioUploading(false);
+                    }}
+                  />
+                </label>
+              </div>
+            ) : audioUrl ? (
+              <div className="flex items-center gap-2">
+                <Music className="w-3.5 h-3.5 text-[#6B6B6B] flex-shrink-0" />
+                <span className="text-xs text-[#1A1A1A] truncate max-w-[120px]">{audioFilename || "Audio uploaded"}</span>
+                <Button
+                  size="sm"
+                  className="text-xs h-6 bg-[#C9A96E] text-white hover:bg-[#B89860] border-0"
+                  onClick={async () => {
+                    setAudioRerendering(true);
+                    const res = await fetch("/api/content/rerender-audio", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ contentPieceId: piece.id }),
+                    });
+                    const data = await res.json();
+                    if (data.composed_urls) {
+                      piece.composed_urls = data.composed_urls;
+                    }
+                    setAudioRerendering(false);
+                  }}
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Re-render with audio
+                </Button>
+              </div>
+            ) : audioUploading ? (
+              <div className="flex items-center gap-2 text-xs text-[#6B6B6B]">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Uploading audio...
+              </div>
+            ) : (
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-[#6B6B6B] hover:text-[#1A1A1A]">
+                <Upload className="w-3.5 h-3.5 flex-shrink-0" />
+                Upload audio
+                <input
+                  type="file"
+                  accept=".mp3,.m4a,.wav"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setAudioUploading(true);
+                    setAudioFilename(file.name);
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("contentPieceId", piece.id);
+                    const res = await fetch("/api/content/upload-audio", { method: "POST", body: formData });
+                    const data = await res.json();
+                    if (data.audioUrl) {
+                      setAudioUrl(data.audioUrl);
+                    }
+                    setAudioUploading(false);
+                  }}
+                />
+              </label>
+            )}
           </div>
         )}
       </div>
