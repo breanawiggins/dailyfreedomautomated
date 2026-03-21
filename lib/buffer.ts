@@ -217,11 +217,14 @@ export async function deletePost(postId: string): Promise<void> {
 // Caption generation
 // ---------------------------------------------------------------------------
 
-interface ContentPieceForCaption {
+import Anthropic from "@anthropic-ai/sdk";
+
+export interface ContentPieceForCaption {
   type: string;
   content_subtype?: string;
   hook: string;
   copy: Record<string, unknown>;
+  content_pillar?: string;
 }
 
 const PRIMARY_HASHTAGS = "#herdailyfreedom #facelessmarketing #digitalfreedom";
@@ -241,7 +244,112 @@ function pickHashtags(count: number): string {
   return shuffled.slice(0, count).join(" ");
 }
 
-export function generateCaption(piece: ContentPieceForCaption): string {
+const CAPTION_SYSTEM_PROMPT = `You are a caption writer for @herdailyfreedom, an Instagram account about building a faceless digital marketing business and living life on your own terms.
+
+Write captions in a warm, personal, story-driven style. The tone is aspirational but grounded — like a friend sharing what she's learned. Use short paragraphs (1-3 sentences each). Mix vulnerability with confidence.
+
+Rules:
+- 150-300 words (not counting hashtags)
+- Start with a hook that stops the scroll (can be the provided hook or a variation)
+- Tell a mini-story or share a relatable moment
+- Weave in the content from the slides/reel naturally — don't just list them
+- Include a clear CTA using the keyword "FREEDOM" (e.g., Comment "FREEDOM" and I'll send you...)
+- End with a line of relevant hashtags — always include #herdailyfreedom
+- No emojis in the story body, but emojis are OK in the CTA line and hashtag line
+- Write in first person
+- Never use the word "journey"`;
+
+function extractCopyContent(copy: Record<string, unknown>): string {
+  // Handle array of slides
+  if (Array.isArray(copy)) {
+    return copy
+      .map((slide: Record<string, unknown>, i: number) => {
+        const heading = slide.heading || slide.slide_heading || "";
+        const body = slide.body || slide.slide_body || "";
+        return `Slide ${i + 1}: ${heading}\n${body}`;
+      })
+      .join("\n\n");
+  }
+
+  // Handle slides nested in object
+  if (copy.slides && Array.isArray(copy.slides)) {
+    return (copy.slides as Record<string, unknown>[])
+      .map((slide, i) => {
+        const heading = slide.heading || slide.slide_heading || "";
+        const body = slide.body || slide.slide_body || "";
+        return `Slide ${i + 1}: ${heading}\n${body}`;
+      })
+      .join("\n\n");
+  }
+
+  // Handle reel copy
+  const parts: string[] = [];
+  if (copy.full_overlay_text) parts.push(`Overlay: ${copy.full_overlay_text}`);
+  if (copy.hook_text) parts.push(`Hook: ${copy.hook_text}`);
+  if (copy.script) parts.push(`Script: ${copy.script}`);
+  if (copy.quote_text) parts.push(`Quote: ${copy.quote_text}`);
+
+  return parts.join("\n") || JSON.stringify(copy);
+}
+
+async function generateCaptionWithClaude(piece: ContentPieceForCaption): Promise<string> {
+  const anthropic = new Anthropic();
+
+  const copyContent = extractCopyContent(piece.copy || {});
+  const contentPillar = piece.content_pillar || "digital freedom";
+
+  const userPrompt = `Write an Instagram caption for this ${piece.content_subtype || piece.type} post.
+
+Hook: ${piece.hook}
+
+Content/slides:
+${copyContent}
+
+Content pillar: ${contentPillar}
+CTA keyword: FREEDOM
+
+Here's an example of the style and format I want (use as a reference, don't copy):
+
+---
+She satisfies her online shopping addiction AND makes money doing it.
+
+Six months ago, I was scrolling through Instagram at 2am, adding things to my cart I didn't need, wondering why my bank account looked the way it did.
+
+Now I channel that same energy into building something that actually pays me back.
+
+I turned my eye for aesthetics into a faceless digital marketing business. No showing my face. No dancing on camera. Just creating content about the things I already love — and watching the sales come in while I sleep.
+
+The truth is, you don't need a huge following or a business degree. You need a system, consistency, and the willingness to start before you feel ready.
+
+If I can do this from my couch in pajamas with a coffee in hand, so can you.
+
+Comment "FREEDOM" and I'll send you exactly how I set this up 🔑
+
+#herdailyfreedom #facelessmarketing #digitalfreedom #makemoneyonline #onlinebusiness #contentcreator #passiveincome #womeninbusiness
+---
+
+Now write a unique caption for the content above. Return ONLY the caption text, nothing else.`;
+
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1024,
+    system: CAPTION_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+
+  const text = response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  if (!text || text.length < 50) {
+    throw new Error("Claude returned insufficient caption text");
+  }
+
+  return text;
+}
+
+function generateFallbackCaption(piece: ContentPieceForCaption): string {
   const subtype = piece.content_subtype || piece.type;
   const copy = piece.copy || {};
 
@@ -296,4 +404,14 @@ export function generateCaption(piece: ContentPieceForCaption): string {
     "",
     `${PRIMARY_HASHTAGS} ${pickHashtags(4)}`,
   ].join("\n");
+}
+
+export async function generateCaption(piece: ContentPieceForCaption): Promise<string> {
+  try {
+    const caption = await generateCaptionWithClaude(piece);
+    return caption;
+  } catch (error) {
+    console.error("Claude caption generation failed, using fallback:", error);
+    return generateFallbackCaption(piece);
+  }
 }

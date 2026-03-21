@@ -4,27 +4,73 @@ import type { ImageStyle } from "@/types/content";
 import { randomUUID } from "crypto";
 
 // ---------------------------------------------------------------------------
-// Locked prompt constants
+// 15-scene rotation pool (replaces 3 locked prompts)
 // ---------------------------------------------------------------------------
 
-const PROMPT_AESTHETIC_FLATLAY =
-  "cozy home desk flat lay shot from above, open journal with pen, ceramic coffee mug with latte art, small lit candle flickering gently, dried flowers in mini white vase, gold paper clips scattered, neutral linen surface, gentle ambient motion, soft diffused morning light, no people, no text, muted and slightly desaturated, film photography aesthetic, cream and warm taupe palette, quiet luxury minimal styling, cinematic lifestyle photography, ultra realistic, 4k";
+/** Flatlay scenes (indices 0-5) — for aesthetic_flatlay pieces */
+const FLATLAY_SCENES: string[] = [
+  "cozy home desk flat lay from above, open journal with gold pen, ceramic latte mug, small lit candle in ceramic holder, dried flowers in white vase, gold paper clips, neutral linen surface, soft morning light, no people, no text, cream and taupe, cinematic lifestyle photography, ultra realistic",
+  "overhead flat lay on white marble surface, open MacBook, ceramic matcha latte, fresh white peonies in glass vase, rose gold pen, small notebook, morning window light, no people, no text, clean minimal aesthetic, ultra realistic",
+  "cozy desk corner from above, spiral notebook open to blank page, espresso in small ceramic cup, single eucalyptus sprig, reading glasses, warm afternoon light, neutral beige tones, no people, no text, quiet luxury, ultra realistic",
+  "flat lay on rustic wooden table, open book face down, ceramic candle burning, dried lavender bunch, small succulent, soft diffused light, muted sage and cream tones, no people, no text, cottagecore minimal, ultra realistic",
+  "minimal desk setup flat lay, closed laptop with sticker, iced coffee with cream swirl, small crystal, airpods case, linen napkin, bright airy light, cream and white tones, no people, no text, clean aesthetic, ultra realistic",
+  "overhead shot of bed with white linen, open journal, morning coffee, book splayed open, reading glasses, candle on nightstand visible at edge, soft morning light, no people, no text, slow morning aesthetic, ultra realistic",
+];
 
-const PROMPT_WOMAN_LIFESTYLE =
-  "cozy bedroom reading nook, faceless woman sitting on white linen bed from behind wearing cream knit sweater, open book in lap, lit candle on wooden nightstand, soft muted morning light through sheer white curtains, woman positioned in bottom half of frame, top 40% of image is empty window and curtains with no subject, muted and slightly desaturated, film photography aesthetic, cooler warm tones not orange, cream and taupe palette, no text, cinematic lifestyle photography, ultra realistic, 4k";
+/** Woman scenes (indices 0-4) — for woman_lifestyle pieces */
+const WOMAN_SCENES: string[] = [
+  "faceless woman from behind sitting at window cafe table, iced latte on table, open laptop, golden afternoon light through glass, cream linen top, hair down, no face visible, cinematic, ultra realistic",
+  "faceless woman from behind sitting cross legged on white bed in oversized cream sweater, looking out window, morning light, white linen, candle on nightstand, peaceful and slow, ultra realistic",
+  "faceless woman from behind walking on quiet street holding coffee cup, wearing neutral trench coat, soft autumn light, blurred background, cinematic lifestyle, ultra realistic",
+  "faceless woman from behind sitting at outdoor cafe table, golden hour light, journal open, espresso on table, greenery in background, cream and warm tones, ultra realistic",
+  "faceless woman from behind lying on white linen bed reading book, knit blanket, afternoon light through sheer curtains, candle burning, peaceful cozy aesthetic, ultra realistic",
+];
 
-const PROMPT_AESTHETIC_ONLY =
-  "minimalist cream background with subtle linen texture, soft warm light casting gentle shadow diagonally from left side, small lit cream pillar candle in ceramic holder bottom center, single dried flower stem laying diagonally across frame, no people, no text, no words, muted and slightly desaturated, film photography aesthetic, cream and warm taupe palette, quiet luxury, lots of empty negative space in center and upper half for text overlay, soft bokeh background, cinematic lifestyle photography, ultra realistic, 4k";
+/** Aesthetic scenes (indices 0-3) — for aesthetic_only pieces */
+const AESTHETIC_SCENES: string[] = [
+  "minimalist cream wall background, single lit pillar candle on concrete surface, dried pampas grass in ceramic vase, soft window shadow casting diagonally, no people, no text, quiet luxury, ultra realistic",
+  "cozy coffee shop corner, two ceramic mugs on wooden table, steam rising, autumn leaves visible through window, warm amber light, no people, no text, cinematic lifestyle, ultra realistic",
+  "bedside table vignette, stack of books with gold bookmarks, ceramic lamp glowing warmly, small candle, dried flower in bud vase, evening light, no people, no text, quiet luxury interior, ultra realistic",
+  "morning kitchen window, ceramic pour over coffee setup, steam rising from mug, fresh flowers in mason jar, soft white light, clean minimal, no people, no text, slow morning lifestyle, ultra realistic",
+];
 
-export function getPromptForStyle(imageStyle: ImageStyle): string {
+/** Map image_style to its scene pool */
+function getScenePool(imageStyle: ImageStyle): string[] {
   switch (imageStyle) {
     case "aesthetic_flatlay":
-      return PROMPT_AESTHETIC_FLATLAY;
+      return FLATLAY_SCENES;
     case "woman_lifestyle":
-      return PROMPT_WOMAN_LIFESTYLE;
+      return WOMAN_SCENES;
     case "aesthetic_only":
-      return PROMPT_AESTHETIC_ONLY;
+      return AESTHETIC_SCENES;
   }
+}
+
+/**
+ * Pick a scene from the correct pool that hasn't been used yet.
+ * If all scenes in pool are used, reset and allow reuse.
+ */
+export function getSceneForStyle(
+  imageStyle: ImageStyle,
+  usedScenes: number[]
+): { index: number; prompt: string } {
+  const pool = getScenePool(imageStyle);
+  const allIndices = pool.map((_, i) => i);
+  const available = allIndices.filter((i) => !usedScenes.includes(i));
+
+  // If all scenes used, reset
+  const candidates = available.length > 0 ? available : allIndices;
+
+  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  return { index: picked, prompt: pool[picked] };
+}
+
+/**
+ * Get scene prompt by index (for looking up a stored scene).
+ */
+export function getScenePrompt(imageStyle: ImageStyle, sceneIndex: number): string {
+  const pool = getScenePool(imageStyle);
+  return pool[sceneIndex % pool.length];
 }
 
 // ---------------------------------------------------------------------------
@@ -73,9 +119,16 @@ async function uploadToSupabase(imageBytes: Buffer, filename: string): Promise<s
 // Imagen 3 generation via @google/genai SDK
 // ---------------------------------------------------------------------------
 
-export async function generateBackground(imageStyle: ImageStyle): Promise<string> {
-  const prompt = getPromptForStyle(imageStyle);
-  console.log(`Generating Imagen 3 background (style: ${imageStyle})…`);
+export async function generateBackground(
+  imageStyle: ImageStyle,
+  sceneIndex?: number
+): Promise<string> {
+  // If sceneIndex provided, use that scene; otherwise pick a random one
+  const pool = getScenePool(imageStyle);
+  const idx = sceneIndex !== undefined ? sceneIndex % pool.length : Math.floor(Math.random() * pool.length);
+  const prompt = pool[idx];
+
+  console.log(`Generating Imagen 3 background (style: ${imageStyle}, scene: ${idx})…`);
 
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 

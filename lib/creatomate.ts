@@ -24,6 +24,7 @@ interface RenderComposition {
   output_format: "jpg" | "mp4";
   width: number;
   height: number;
+  frame_rate?: number;
   elements: CreatomateElement[];
 }
 
@@ -195,6 +196,7 @@ export async function composeReel(
     output_format: "mp4",
     width: 1080,
     height: 1920,
+    frame_rate: 30,
     elements,
   });
 }

@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       let bufferError: string | null = null;
 
       try {
-        const caption = generateCaption(piece);
+        const caption = await generateCaption(piece);
         const mediaUrls = (piece.composed_urls as string[]) || [];
         const isVideo = piece.type === "reel" || piece.content_subtype === "reel";
         const scheduledAt = piece.post_time || new Date().toISOString();

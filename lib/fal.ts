@@ -75,7 +75,7 @@ export async function generateReelVideo(): Promise<string> {
   console.log("Generating reel video…");
 
   const result = await callWithRetry(() =>
-    fal.subscribe("fal-ai/kling-video/v1.6/standard/text-to-video", {
+    fal.subscribe("fal-ai/kling-video/v1.6/pro/text-to-video", {
       input: {
         prompt: PROMPT_VIDEO,
         duration: "5",
