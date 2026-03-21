@@ -113,6 +113,8 @@ function textEl(
     y_alignment?: string;
     shadow_color?: string;
     shadow_blur?: string;
+    line_height?: string;
+    letter_spacing?: string;
   }
 ): CreatomateElement {
   const el: CreatomateElement = {
@@ -133,6 +135,8 @@ function textEl(
   if (opts.text_transform) el.text_transform = opts.text_transform;
   if (opts.shadow_color) el.shadow_color = opts.shadow_color;
   if (opts.shadow_blur) el.shadow_blur = opts.shadow_blur;
+  if (opts.line_height) el.line_height = opts.line_height;
+  if (opts.letter_spacing) el.letter_spacing = opts.letter_spacing;
   return el;
 }
 
@@ -167,13 +171,15 @@ export async function composeReel(
       bgVideo(videoUrl, 0.45),
       textEl(hookText, {
         font_family: "Caveat",
-        font_size: "76 px",
+        font_size: "92 px",
         x: "50%",
-        y: "40%",
-        width: "85%",
+        y: "50%",
+        width: "88%",
         text_alignment: "center",
         shadow_color: "rgba(0,0,0,0.60)",
         shadow_blur: "4 px",
+        line_height: "150%",
+        letter_spacing: "0.02 em",
       }),
     ],
   });
@@ -188,17 +194,17 @@ export async function composeCarouselCoverSlide(
 ): Promise<string> {
   const elements: CreatomateElement[] = [
     bgImage(imageUrl, 0.45),
-    // sparkle decoration
+    // sparkle decoration — sits above headline
     textEl("✦", {
       font_family: "Caveat",
       font_size: "48 px",
       fill_color: "rgba(255,255,255,0.70)",
       x: "50%",
-      y: "25%",
+      y: "22%",
       width: "20%",
       text_alignment: "center",
     }),
-    // main headline — Playfair Display italic
+    // main headline — Playfair Display italic at 35% from top
     textEl(headlineScript, {
       font_family: "Playfair Display",
       font_style: "italic",
@@ -207,28 +213,29 @@ export async function composeCarouselCoverSlide(
       y: "35%",
       width: "85%",
       text_alignment: "center",
+      line_height: "130%",
     }),
-    // secondary headline — Montserrat bold
+    // secondary headline — 60px below main headline (~55% from top)
     textEl(headlineFactual, {
       font_family: "Montserrat",
       font_weight: "bold",
       font_size: "48 px",
       x: "50%",
-      y: "50%",
+      y: "55%",
       width: "85%",
       text_alignment: "center",
     }),
-    // subtext
+    // subtext at 75% from top
     textEl(subtext, {
       font_family: "Caveat",
       font_size: "42 px",
       fill_color: "rgba(255,255,255,0.85)",
       x: "50%",
-      y: "70%",
+      y: "75%",
       width: "85%",
       text_alignment: "center",
     }),
-    // swipe arrow
+    // swipe arrow at 92%
     swipeArrow(),
   ];
 
@@ -249,14 +256,15 @@ export async function composeCarouselBodySlide(
 ): Promise<string> {
   const elements: CreatomateElement[] = [
     bgImage(imageUrl, 0.45),
-    // body text — left-aligned, vertically centered
+    // body text — left-aligned, vertically centered, 40px padding via reduced width
     textEl(bodyText, {
       font_family: "Caveat",
-      font_size: "58 px",
+      font_size: "62 px",
       x: "50%",
       y: "50%",
-      width: "85%",
+      width: "88%",
       text_alignment: "left",
+      line_height: "160%",
     }),
   ];
 
@@ -325,6 +333,12 @@ export async function composeCarouselStepSlide(
   });
 }
 
+// Truncate helper for CTA text limits
+function truncate(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen - 1).trim() + "…";
+}
+
 /** CAROUSEL CTA SLIDE — 1080×1350 jpg, lighter overlay */
 export async function composeCarouselCTASlide(
   imageUrl: string,
@@ -338,8 +352,8 @@ export async function composeCarouselCTASlide(
     height: 1350,
     elements: [
       bgImage(imageUrl, 0.35),
-      // setup line
-      textEl(setupLine, {
+      // setup line — truncated to 60 chars
+      textEl(truncate(setupLine, 60), {
         font_family: "Caveat",
         font_size: "52 px",
         fill_color: "rgba(255,255,255,0.85)",
@@ -348,8 +362,8 @@ export async function composeCarouselCTASlide(
         width: "85%",
         text_alignment: "center",
       }),
-      // keyword — Montserrat bold uppercase
-      textEl(keyword, {
+      // keyword — truncated to 30 chars
+      textEl(truncate(keyword, 30), {
         font_family: "Montserrat",
         font_weight: "bold",
         font_size: "88 px",
@@ -359,8 +373,8 @@ export async function composeCarouselCTASlide(
         width: "85%",
         text_alignment: "center",
       }),
-      // subtext
-      textEl(subtext, {
+      // subtext — truncated to 80 chars
+      textEl(truncate(subtext, 80), {
         font_family: "Caveat",
         font_size: "44 px",
         fill_color: "rgba(255,255,255,0.85)",

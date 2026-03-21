@@ -66,6 +66,12 @@ TYPE 3 - RESULT-FIRST CAROUSEL (7-8 slides):
 - Slide 7: Profit potential math slide (show the numbers)
 - Slide 8: CTA — Comment "[KEYWORD]"
 
+CTA SLIDE CHARACTER LIMITS (critical for rendering):
+- The CTA slide heading (setup line) must be max 60 characters
+- The CTA keyword must be max 20 characters
+- The CTA slide body (subtext below keyword) must be max 80 characters
+- Keep CTA text short and punchy. Example: heading="Want the blueprint?", body="& I'll send it straight to your DMs"
+
 Each carousel slide must return:
 - slide_number: number
 - heading: the main heading text
