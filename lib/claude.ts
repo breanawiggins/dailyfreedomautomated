@@ -100,6 +100,49 @@ function parseJsonResponse<T>(text: string): T {
   return JSON.parse(cleaned) as T;
 }
 
+const SINGLE_IMAGE_FORMAT = `SINGLE IMAGE FORMAT:
+Single image posts are a beautiful lifestyle background with a short quote or tip overlaid (composed later by Creatomate). Keep copy very concise.
+
+Each single_image must return:
+- full_copy: { "quote_text": "short motivational or tip quote", "attribution": "@herdailyfreedom" }`;
+
+const WEEKLY_SCHEDULE = `WEEKLY SCHEDULE (21 pieces total, 3 per day):
+
+Monday:
+  1. reel — Proof+Story pillar, image_style: "woman_lifestyle", post_time_slot: "08:00"
+  2. carousel — Grow the Page pillar, image_style: "aesthetic_flatlay", post_time_slot: "12:00"
+  3. single_image — motivational, image_style: "aesthetic_only", post_time_slot: "18:00"
+
+Tuesday:
+  4. reel — AI+Automation pillar, image_style: "aesthetic_flatlay", post_time_slot: "08:00"
+  5. carousel — Proof+Story pillar, image_style: "woman_lifestyle", post_time_slot: "12:00"
+  6. single_image — Grow the Page tip, image_style: "aesthetic_flatlay", post_time_slot: "18:00"
+
+Wednesday:
+  7. reel — Grow the Page pillar, image_style: "aesthetic_flatlay", post_time_slot: "08:00"
+  8. carousel — AI+Automation pillar, image_style: "aesthetic_flatlay", post_time_slot: "12:00"
+  9. single_image — motivational, image_style: "aesthetic_only", post_time_slot: "18:00"
+
+Thursday:
+  10. reel — Proof+Story pillar, image_style: "woman_lifestyle", post_time_slot: "08:00"
+  11. carousel — Grow the Page pillar, image_style: "aesthetic_flatlay", post_time_slot: "12:00"
+  12. single_image — AI+Automation tip, image_style: "aesthetic_flatlay", post_time_slot: "18:00"
+
+Friday:
+  13. reel — Grow the Page pillar, image_style: "aesthetic_flatlay", post_time_slot: "08:00"
+  14. carousel — Proof+Story pillar, image_style: "woman_lifestyle", post_time_slot: "12:00"
+  15. single_image — motivational, image_style: "aesthetic_only", post_time_slot: "18:00"
+
+Saturday:
+  16. reel — AI+Automation pillar, image_style: "aesthetic_flatlay", post_time_slot: "08:00"
+  17. carousel — Grow the Page pillar, image_style: "aesthetic_flatlay", post_time_slot: "12:00"
+  18. single_image — Proof+Story, image_style: "aesthetic_only", post_time_slot: "18:00"
+
+Sunday:
+  19. reel — motivational/mindset, image_style: "aesthetic_only", post_time_slot: "08:00"
+  20. carousel — AI+Automation pillar, image_style: "aesthetic_flatlay", post_time_slot: "12:00"
+  21. single_image — Grow the Page tip, image_style: "aesthetic_flatlay", post_time_slot: "18:00"`;
+
 export async function generateWeeklyBatch(
   settings: NicheSettings
 ): Promise<WeeklyBatchOutput> {
@@ -117,32 +160,36 @@ ${REEL_FORMAT}
 
 ${CAROUSEL_FORMATS}
 
-Generate a weekly content batch of exactly 5 pieces:
-- 3 reels (one for each content pillar)
-- 2 carousels (use a mix of carousel types: pick 2 different types from "story", "blueprint", "result_first")
+${SINGLE_IMAGE_FORMAT}
 
-Each piece must use a DIFFERENT hook formula. Rotate through the content pillars.
+${WEEKLY_SCHEDULE}
+
+Generate a weekly content batch of exactly 21 pieces following the schedule above precisely. Each piece must use a DIFFERENT hook formula — rotate through all 10 formulas and repeat as needed across 21 pieces.
+
+Be concise — short hooks, tight copy, no fluff. We need all 21 pieces to fit.
 
 The CTA keyword for all carousels should be "${settings.cta_keyword}".
 
-Return valid JSON matching this exact structure:
+For each piece return:
+- type: "reel" | "carousel" | "single_image"
+- content_subtype: "reel" | "carousel" | "single_image" (same as type)
+- day_of_week: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday"
+- post_time_slot: "08:00" | "12:00" | "18:00"
+- image_style: "aesthetic_flatlay" | "aesthetic_only" | "woman_lifestyle"
+- hook: "the hook text"
+- full_copy: for reels: { "hook_text": "...", "full_overlay_text": "...", "image_prompt": "..." }, for carousels: [{ "slide_number": 1, "heading": "...", "body": "...", "font_style_hint": "..." }, ...], for single_image: { "quote_text": "...", "attribution": "@herdailyfreedom" }
+- suggested_cta_keyword: "${settings.cta_keyword}"
+- content_pillar: "Proof + Story" | "Grow the Page" | "AI + Automation" | "motivational"
+
+Return valid JSON:
 {
-  "pieces": [
-    {
-      "type": "reel" | "carousel",
-      "hook": "the hook text",
-      "full_copy": <for reels: { "hook_text": "...", "full_overlay_text": "...", "image_prompt": "..." }, for carousels: [{ "slide_number": 1, "heading": "...", "body": "...", "font_style_hint": "..." }, ...]>,
-      "suggested_cta_keyword": "${settings.cta_keyword}",
-      "content_pillar": "one of the 3 pillars",
-      "image_prompt_suggestion": "aesthetic image description for the piece"
-    }
-  ],
+  "pieces": [ ... all 21 pieces ... ],
   "week_of": "${weekOf}"
 }`;
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 8192,
+    max_tokens: 16384,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
   });

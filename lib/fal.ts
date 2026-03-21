@@ -1,46 +1,28 @@
 import { fal } from "@fal-ai/client";
+import type { ImageStyle } from "@/types/content";
 
 fal.config({
   credentials: process.env.FAL_KEY!,
 });
 
 // ---------------------------------------------------------------------------
-// Lifestyle settings pool — rotated through for image/video prompts
-// ---------------------------------------------------------------------------
-export const LIFESTYLE_SETTINGS = [
-  "cozy home desk with open laptop, pink tulips in glass vase, croissant on ceramic plate, lit candle, journal and pens, warm morning light through window",
-  "bedroom reading nook with stacked books, lit candle, knit throw blanket, soft lamp light",
-  "coffee shop window seat with iced coffee in tall glass, open journal, warm afternoon light streaming in",
-  "outdoor patio at golden hour with open book on wooden table, warm amber light, lush greenery",
-  "bedside table with ceramic lamp, lit candle, stack of books, soft morning light through sheer curtains",
-  "kitchen counter with coffee being poured, marble surface, small vase of flowers, warm morning light",
-  "cozy living room with throw blanket draped over sofa, laptop open, warm lamp glow, neutral tones",
-  "home office desk flat lay with laptop, leather notebook, gold pen, coffee cup, neutral warm tones",
-  "balcony at sunset with warm golden tones, city skyline in soft focus, potted plants",
-  "bed with white linen sheets, open journal, coffee cup on tray, peaceful soft morning light",
-];
-
-// ---------------------------------------------------------------------------
-// Prompt builders
+// Locked prompt constants
 // ---------------------------------------------------------------------------
 
-export function buildImagePrompt(
-  setting: string,
-  timeOfDay: string,
-  hasWoman: boolean
-): string {
-  const womanClause = hasWoman
-    ? "faceless woman seen from behind, "
-    : "";
-  return `${setting}, warm neutral tones, soft natural light, cozy and aspirational, ${womanClause}shot from behind/above/side, no text, cinematic lifestyle photography, cream and warm beige palette, ${timeOfDay}, ultra realistic, 4k, muted and slightly desaturated, film photography aesthetic, cooler warm tones not orange, soft not harsh golden light, subject in lower third of frame, large negative space in upper half for text overlay, editorial composition`;
-}
+const PROMPT_AESTHETIC_FLATLAY =
+  "cozy home desk flat lay shot from above, open journal with pen, ceramic coffee mug with latte art, small lit candle flickering gently, dried flowers in mini white vase, gold paper clips scattered, neutral linen surface, gentle ambient motion, soft diffused morning light, no people, no text, muted and slightly desaturated, film photography aesthetic, cream and warm taupe palette, quiet luxury minimal styling, cinematic lifestyle photography, ultra realistic, 4k";
 
-export function buildVideoPrompt(setting: string): string {
-  return `${setting}, gentle ambient motion, slow zoom or subtle camera drift, warm natural light, cozy and cinematic, no text, lifestyle reel aesthetic, faceless, soft life vibes, muted and slightly desaturated, film photography aesthetic, cooler warm tones not orange, soft not harsh golden light`;
-}
+const PROMPT_WOMAN_LIFESTYLE =
+  "cozy bedroom reading nook, faceless woman sitting on white linen bed from behind wearing cream knit sweater, open book in lap, lit candle on wooden nightstand, soft muted morning light through sheer white curtains, woman positioned in bottom half of frame, top 40% of image is empty window and curtains with no subject, muted and slightly desaturated, film photography aesthetic, cooler warm tones not orange, cream and taupe palette, no text, cinematic lifestyle photography, ultra realistic, 4k";
+
+const PROMPT_AESTHETIC_ONLY =
+  "minimalist cream background with subtle linen texture, soft warm light casting gentle shadow diagonally from left side, small lit cream pillar candle in ceramic holder bottom center, single dried flower stem laying diagonally across frame, no people, no text, no words, muted and slightly desaturated, film photography aesthetic, cream and warm taupe palette, quiet luxury, lots of empty negative space in center and upper half for text overlay, soft bokeh background, cinematic lifestyle photography, ultra realistic, 4k";
+
+const PROMPT_VIDEO =
+  "cozy home desk flat lay from above, open journal with pen, ceramic coffee mug with latte art, small lit candle flickering gently, dried flowers in mini white vase, gold paper clips scattered, neutral linen surface, gentle ambient motion, very slow subtle zoom out, soft diffused morning light, no people, no text, muted and slightly desaturated, warm taupe and cream palette, quiet luxury, cinematic lifestyle reel, ultra realistic";
 
 // ---------------------------------------------------------------------------
-// fal.ai generation functions
+// Helpers
 // ---------------------------------------------------------------------------
 
 async function callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
@@ -53,16 +35,29 @@ async function callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export async function generateCarouselBackground(
-  imagePrompt: string,
-  slideCount: number
-): Promise<string[]> {
-  console.log("Generating carousel background image…");
+export function getPromptForStyle(imageStyle: ImageStyle): string {
+  switch (imageStyle) {
+    case "aesthetic_flatlay":
+      return PROMPT_AESTHETIC_FLATLAY;
+    case "woman_lifestyle":
+      return PROMPT_WOMAN_LIFESTYLE;
+    case "aesthetic_only":
+      return PROMPT_AESTHETIC_ONLY;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// fal.ai generation functions
+// ---------------------------------------------------------------------------
+
+export async function generateBackground(imageStyle: ImageStyle): Promise<string> {
+  const prompt = getPromptForStyle(imageStyle);
+  console.log(`Generating background image (style: ${imageStyle})…`);
 
   const result = await callWithRetry(() =>
     fal.subscribe("fal-ai/flux/dev", {
       input: {
-        prompt: imagePrompt,
+        prompt,
         image_size: { width: 1080, height: 1350 },
         num_inference_steps: 28,
         guidance_scale: 3.5,
@@ -72,21 +67,22 @@ export async function generateCarouselBackground(
   );
 
   const url = (result.data as { images: { url: string }[] }).images[0].url;
-  console.log("Carousel background generated:", url);
-  return Array(slideCount).fill(url) as string[];
+  console.log("Background image generated:", url);
+  return url;
 }
 
-export async function generateReelVideo(
-  videoPrompt: string
-): Promise<string> {
+export async function generateReelVideo(): Promise<string> {
   console.log("Generating reel video…");
 
   const result = await callWithRetry(() =>
     fal.subscribe("fal-ai/kling-video/v1.6/standard/text-to-video", {
       input: {
-        prompt: videoPrompt,
+        prompt: PROMPT_VIDEO,
         duration: "5",
         aspect_ratio: "9:16",
+        cfg_scale: 0.5,
+        negative_prompt:
+          "text, watermark, face, harsh lighting, fast motion, jump cuts",
       },
     })
   );

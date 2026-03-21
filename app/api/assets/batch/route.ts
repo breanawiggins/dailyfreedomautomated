@@ -1,37 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import {
-  generateCarouselBackground,
-  generateReelVideo,
-  buildImagePrompt,
-  buildVideoPrompt,
-  LIFESTYLE_SETTINGS,
-} from "@/lib/fal";
-import type { CarouselSlide } from "@/types/content";
-
-function randomSetting(): string {
-  return LIFESTYLE_SETTINGS[Math.floor(Math.random() * LIFESTYLE_SETTINGS.length)];
-}
-
-const TIMES_OF_DAY = ["morning", "golden hour", "afternoon", "soft evening light"];
-
-function randomTimeOfDay(): string {
-  return TIMES_OF_DAY[Math.floor(Math.random() * TIMES_OF_DAY.length)];
-}
+import { generateBackground, generateReelVideo } from "@/lib/fal";
+import type { ImageStyle } from "@/types/content";
 
 async function generateAssetsForPiece(
-  piece: { id: string; type: string; copy: unknown },
+  piece: { id: string; type: string; copy: unknown; image_style: string | null },
   supabase: ReturnType<typeof createServiceClient>
 ): Promise<{ id: string; success: boolean; error?: string }> {
-  const setting = randomSetting();
+  const imageStyle = (piece.image_style || "aesthetic_flatlay") as ImageStyle;
 
-  if (piece.type === "carousel") {
-    const slides = piece.copy as CarouselSlide[];
-    const slideCount = Array.isArray(slides) ? slides.length : 5;
-    const imagePrompt = buildImagePrompt(setting, randomTimeOfDay(), Math.random() > 0.5);
-    console.log(`[${piece.id}] Carousel prompt: ${imagePrompt}`);
+  if (piece.type === "carousel" || piece.type === "single_image") {
+    const imageUrl = await generateBackground(imageStyle);
+    console.log(`[${piece.id}] Background generated (style: ${imageStyle})`);
 
-    const imageUrls = await generateCarouselBackground(imagePrompt, slideCount);
+    const imageUrls = piece.type === "carousel"
+      ? Array(Array.isArray(piece.copy) ? piece.copy.length : 5).fill(imageUrl) as string[]
+      : [imageUrl];
 
     const { error } = await supabase
       .from("content_pieces")
@@ -43,10 +27,8 @@ async function generateAssetsForPiece(
   }
 
   if (piece.type === "reel") {
-    const videoPrompt = buildVideoPrompt(setting);
-    console.log(`[${piece.id}] Reel prompt: ${videoPrompt}`);
-
-    const videoUrl = await generateReelVideo(videoPrompt);
+    const videoUrl = await generateReelVideo();
+    console.log(`[${piece.id}] Reel video generated`);
 
     const { error } = await supabase
       .from("content_pieces")
@@ -100,7 +82,6 @@ export async function POST(request: NextRequest) {
         results.push(result);
         console.log(`[${piece.id}] Asset generation succeeded`);
       } catch (error) {
-        // Retry once after 10 seconds
         console.error(`[${piece.id}] First attempt failed, retrying in 10s…`, error);
         await new Promise((r) => setTimeout(r, 10_000));
 

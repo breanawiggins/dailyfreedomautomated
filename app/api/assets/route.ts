@@ -1,23 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import {
-  generateCarouselBackground,
-  generateReelVideo,
-  buildImagePrompt,
-  buildVideoPrompt,
-  LIFESTYLE_SETTINGS,
-} from "@/lib/fal";
-import type { CarouselSlide } from "@/types/content";
-
-function randomSetting(): string {
-  return LIFESTYLE_SETTINGS[Math.floor(Math.random() * LIFESTYLE_SETTINGS.length)];
-}
-
-const TIMES_OF_DAY = ["morning", "golden hour", "afternoon", "soft evening light"];
-
-function randomTimeOfDay(): string {
-  return TIMES_OF_DAY[Math.floor(Math.random() * TIMES_OF_DAY.length)];
-}
+import { generateBackground, generateReelVideo } from "@/lib/fal";
+import type { ImageStyle } from "@/types/content";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,7 +13,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // Fetch the content piece
     const { data: piece, error: fetchError } = await supabase
       .from("content_pieces")
       .select("*")
@@ -45,16 +28,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`Generating assets for piece ${piece.id} (type: ${piece.type})`);
 
-    const setting = randomSetting();
+    const imageStyle = (piece.image_style || "aesthetic_flatlay") as ImageStyle;
 
-    if (piece.type === "carousel") {
-      const slides = piece.copy as CarouselSlide[];
-      const slideCount = Array.isArray(slides) ? slides.length : 5;
+    if (piece.type === "carousel" || piece.type === "single_image") {
+      const imageUrl = await generateBackground(imageStyle);
 
-      const imagePrompt = buildImagePrompt(setting, randomTimeOfDay(), Math.random() > 0.5);
-      console.log("Carousel image prompt:", imagePrompt);
-
-      const imageUrls = await generateCarouselBackground(imagePrompt, slideCount);
+      const imageUrls = piece.type === "carousel"
+        ? Array(Array.isArray(piece.copy) ? piece.copy.length : 5).fill(imageUrl) as string[]
+        : [imageUrl];
 
       const { data: updated, error: updateError } = await supabase
         .from("content_pieces")
@@ -71,10 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (piece.type === "reel") {
-      const videoPrompt = buildVideoPrompt(setting);
-      console.log("Reel video prompt:", videoPrompt);
-
-      const videoUrl = await generateReelVideo(videoPrompt);
+      const videoUrl = await generateReelVideo();
 
       const { data: updated, error: updateError } = await supabase
         .from("content_pieces")

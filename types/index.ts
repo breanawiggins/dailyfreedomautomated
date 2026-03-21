@@ -1,6 +1,6 @@
 // Content Pipeline Types for DailyFreedomAutomated
 
-export type ContentType = "reel" | "carousel";
+export type ContentType = "reel" | "carousel" | "single_image";
 export type ContentStatus = "draft" | "approved" | "rejected" | "scheduled";
 export type BatchStatus = "generating" | "ready" | "partial";
 
@@ -26,6 +26,9 @@ export interface ContentPiece {
   buffer_post_id: string | null;
   scheduled_time: string | null;
   notes: string | null;
+  post_time: string | null;
+  content_subtype: string | null;
+  image_style: string | null;
 }
 
 export interface NicheSettings {
