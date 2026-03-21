@@ -1,6 +1,6 @@
 // Creatomate Compositing Layer — renders compositions via the Creatomate REST API
 
-const CREATOMATE_API_URL = "https://api.creatomate.com/v1";
+const CREATOMATE_API_URL = "https://api.creatomate.com/v2";
 const POLL_INTERVAL_MS = 5_000;
 const RENDER_TIMEOUT_MS = 120_000;
 
