@@ -179,7 +179,7 @@ export async function composeReel(
         shadow_color: "rgba(0,0,0,0.60)",
         shadow_blur: "4 px",
         line_height: "150%",
-        letter_spacing: "0.02 em",
+        letter_spacing: "2%",
       }),
     ],
   });
