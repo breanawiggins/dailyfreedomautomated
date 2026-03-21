@@ -163,6 +163,9 @@ export async function composeReel(
   videoUrl: string,
   hookText: string
 ): Promise<string> {
+  // Adaptive font size: 92px for short hooks, 78px for long ones
+  const fontSize = hookText.length > 75 ? "78 px" : "92 px";
+
   return renderComposition({
     output_format: "mp4",
     width: 1080,
@@ -171,13 +174,13 @@ export async function composeReel(
       bgVideo(videoUrl, 0.45),
       textEl(hookText, {
         font_family: "Caveat",
-        font_size: "92 px",
+        font_size: fontSize,
         x: "50%",
-        y: "50%",
+        y: "45%",
         width: "88%",
         text_alignment: "center",
         shadow_color: "rgba(0,0,0,0.60)",
-        shadow_blur: "4 px",
+        shadow_blur: "12 px",
         line_height: "150%",
         letter_spacing: "2%",
       }),
@@ -194,16 +197,18 @@ export async function composeCarouselCoverSlide(
 ): Promise<string> {
   const elements: CreatomateElement[] = [
     bgImage(imageUrl, 0.45),
-    // sparkle decoration — sits above headline
-    textEl("✦", {
-      font_family: "Caveat",
-      font_size: "48 px",
-      fill_color: "rgba(255,255,255,0.70)",
+    // thin decorative line above headline
+    {
+      type: "shape",
+      path: "M 0 0 L 1 0",
+      width: "120 px",
+      height: "1 px",
+      fill_color: "rgba(255,255,255,0.40)",
       x: "50%",
-      y: "22%",
-      width: "20%",
-      text_alignment: "center",
-    }),
+      y: "24%",
+      x_alignment: "50%",
+      y_alignment: "50%",
+    } as CreatomateElement,
     // main headline — Playfair Display italic at 35% from top
     textEl(headlineScript, {
       font_family: "Playfair Display",
@@ -215,6 +220,18 @@ export async function composeCarouselCoverSlide(
       text_alignment: "center",
       line_height: "130%",
     }),
+    // thin decorative line below headline
+    {
+      type: "shape",
+      path: "M 0 0 L 1 0",
+      width: "120 px",
+      height: "1 px",
+      fill_color: "rgba(255,255,255,0.40)",
+      x: "50%",
+      y: "46%",
+      x_alignment: "50%",
+      y_alignment: "50%",
+    } as CreatomateElement,
     // secondary headline — 60px below main headline (~55% from top)
     textEl(headlineFactual, {
       font_family: "Montserrat",
@@ -265,6 +282,7 @@ export async function composeCarouselBodySlide(
       width: "88%",
       text_alignment: "left",
       line_height: "160%",
+      letter_spacing: "1%",
     }),
   ];
 
@@ -333,7 +351,7 @@ export async function composeCarouselStepSlide(
   });
 }
 
-// Truncate helper for CTA text limits
+// Truncate helper — hard cut, never splits words across layers
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen - 1).trim() + "…";
@@ -346,14 +364,19 @@ export async function composeCarouselCTASlide(
   keyword: string,
   subtext: string
 ): Promise<string> {
+  // Hard truncate all text — never overflow
+  const safeSetup = truncate(setupLine, 55);
+  const safeKeyword = truncate(`COMMENT "${keyword}"`, 30);
+  const safeSub = truncate(subtext, 75);
+
   return renderComposition({
     output_format: "jpg",
     width: 1080,
     height: 1350,
     elements: [
       bgImage(imageUrl, 0.35),
-      // setup line — truncated to 60 chars
-      textEl(truncate(setupLine, 60), {
+      // setup line
+      textEl(safeSetup, {
         font_family: "Caveat",
         font_size: "52 px",
         fill_color: "rgba(255,255,255,0.85)",
@@ -362,19 +385,19 @@ export async function composeCarouselCTASlide(
         width: "85%",
         text_alignment: "center",
       }),
-      // keyword — truncated to 30 chars
-      textEl(truncate(keyword, 30), {
+      // keyword — always COMMENT "KEYWORD" format
+      textEl(safeKeyword, {
         font_family: "Montserrat",
         font_weight: "bold",
-        font_size: "88 px",
+        font_size: "80 px",
         text_transform: "uppercase",
         x: "50%",
         y: "50%",
-        width: "85%",
+        width: "90%",
         text_alignment: "center",
       }),
-      // subtext — truncated to 80 chars
-      textEl(truncate(subtext, 80), {
+      // subtext
+      textEl(safeSub, {
         font_family: "Caveat",
         font_size: "44 px",
         fill_color: "rgba(255,255,255,0.85)",
@@ -455,6 +478,8 @@ interface CarouselSlide {
 interface ContentPieceForCarousel {
   copy: Record<string, unknown> | CarouselSlide[];
   image_urls: string[];
+  hook?: string;
+  suggested_cta_keyword?: string;
 }
 
 function isStepSlide(slide: CarouselSlide): boolean {
@@ -464,28 +489,30 @@ function isStepSlide(slide: CarouselSlide): boolean {
   return false;
 }
 
-function parseCTAText(text: string): {
+function parseCTAText(text: string, ctaKeyword?: string): {
   setupLine: string;
   keyword: string;
   subtext: string;
 } {
-  // Look for pattern like: "Ready to start? Comment "FREEDOM" below to get..."
+  const kw = ctaKeyword || "FREEDOM";
+
+  // Try to parse "Comment X" pattern
   const commentMatch = text.match(
-    /(.+?)\bcomment\s+[""]([^""]+)[""](.*)$/i
+    /(.+?)\bcomment\s+['"\u201c]?([^'"\u201d]+)['"\u201d]?\s*(.*)$/i
   );
   if (commentMatch) {
     return {
       setupLine: commentMatch[1].trim(),
-      keyword: `COMMENT "${commentMatch[2].trim()}"`,
-      subtext: commentMatch[3].trim(),
+      keyword: kw,
+      subtext: commentMatch[3].trim() || "& I'll send it straight to your DMs",
     };
   }
-  // Fallback: split at midpoint
-  const mid = Math.floor(text.length / 2);
+
+  // Fallback: use text as setup, keyword from settings
   return {
-    setupLine: text.slice(0, mid).trim(),
-    keyword: "SAVE THIS",
-    subtext: text.slice(mid).trim(),
+    setupLine: text.length > 55 ? text.slice(0, 54).trim() + "\u2026" : text,
+    keyword: kw,
+    subtext: "& I'll send it straight to your DMs",
   };
 }
 
@@ -566,7 +593,9 @@ export async function composeFullCarousel(
   if (totalSlides > 1) {
     const ctaSlide = slides[totalSlides - 1];
     const ctaText = `${ctaSlide.heading} ${ctaSlide.body}`.trim();
-    const { setupLine, keyword, subtext: ctaSub } = parseCTAText(ctaText);
+    // Extract CTA keyword from the content piece, not from text parsing
+    const pieceKeyword = contentPiece.suggested_cta_keyword || "FREEDOM";
+    const { setupLine, keyword, subtext: ctaSub } = parseCTAText(ctaText, pieceKeyword);
     const ctaImg =
       contentPiece.image_urls[totalSlides - 1] ??
       contentPiece.image_urls[0] ??

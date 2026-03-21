@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { generateBackground, generateReelVideo } from "@/lib/fal";
+import { generateBackground } from "@/lib/imagen";
+import { generateReelVideo } from "@/lib/fal";
 import type { ImageStyle } from "@/types/content";
 
 async function generateAssetsForPiece(

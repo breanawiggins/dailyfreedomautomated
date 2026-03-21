@@ -55,7 +55,12 @@ export async function POST(request: NextRequest) {
       const url = await composeReel(piece.image_urls[0], hookText);
       composedUrls = [url];
     } else if (piece.type === "carousel") {
-      composedUrls = await composeFullCarousel(piece, piece.image_urls[0]);
+      // Pass CTA keyword to the carousel compositor
+      const pieceWithKeyword = {
+        ...piece,
+        suggested_cta_keyword: "FREEDOM", // Default keyword for @herdailyfreedom
+      };
+      composedUrls = await composeFullCarousel(pieceWithKeyword, piece.image_urls[0]);
     } else if (piece.type === "single_image") {
       const copy = piece.copy as Record<string, unknown>;
       const quoteText =
