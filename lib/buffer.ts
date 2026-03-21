@@ -171,6 +171,7 @@ export async function schedulePost(params: SchedulePostParams): Promise<string> 
     metadata: {
       instagram: {
         type: instagramType,
+        shouldShareToFeed: true,
       },
     },
   };
