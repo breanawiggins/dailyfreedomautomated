@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { generateCaption, schedulePost } from "@/lib/buffer";
-import { ContentPiece } from "@/types";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +15,6 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // Fetch the full piece for caption generation and media URLs
     const { data: piece, error: fetchError } = await supabase
       .from("content_pieces")
       .select("*")
@@ -30,31 +28,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const typedPiece = piece as ContentPiece;
-    const profileId = process.env.BUFFER_PROFILE_ID!;
+    const channelId = process.env.BUFFER_PROFILE_ID!;
     let bufferPostId: string | null = null;
     let bufferError: string | null = null;
 
     // Generate caption and schedule to Buffer
     try {
-      const caption = generateCaption(typedPiece);
-      const mediaUrls = typedPiece.composed_urls || [];
-      const isVideo = typedPiece.type === "reel";
-      const scheduledAt = typedPiece.post_time || new Date().toISOString();
+      const caption = generateCaption(piece);
+      const mediaUrls = (piece.composed_urls as string[]) || [];
+      const isVideo = piece.type === "reel" || piece.content_subtype === "reel";
+      const scheduledAt = piece.post_time || new Date().toISOString();
 
-      const result = await schedulePost({
-        profileId,
-        caption,
-        mediaUrls,
-        scheduledAt,
-        isVideo,
-      });
-
-      if (result.success && result.updates?.length > 0) {
-        bufferPostId = result.updates[0].id;
+      if (mediaUrls.length > 0) {
+        bufferPostId = await schedulePost({
+          channelId,
+          caption,
+          mediaUrls,
+          scheduledAt,
+          isVideo,
+        });
+      } else {
+        bufferError = "No composed media URLs — compose content first";
       }
     } catch (err) {
       bufferError = err instanceof Error ? err.message : "Buffer scheduling failed";
+      console.error("Buffer scheduling error:", err);
     }
 
     // Update Supabase — scheduled if Buffer succeeded, approved if not
@@ -62,7 +60,7 @@ export async function POST(req: NextRequest) {
       ? {
           status: "scheduled",
           buffer_post_id: bufferPostId,
-          scheduled_time: typedPiece.post_time,
+          scheduled_time: piece.post_time,
         }
       : { status: "approved" };
 

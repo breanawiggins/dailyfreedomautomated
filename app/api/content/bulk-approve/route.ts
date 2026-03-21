@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { generateCaption, schedulePost } from "@/lib/buffer";
-import { ContentPiece } from "@/types";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,9 +14,8 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = createServiceClient();
-    const profileId = process.env.BUFFER_PROFILE_ID!;
+    const channelId = process.env.BUFFER_PROFILE_ID!;
 
-    // Fetch all pieces
     const { data: pieces, error: fetchError } = await supabase
       .from("content_pieces")
       .select("*")
@@ -34,27 +32,26 @@ export async function POST(req: NextRequest) {
       error: string | null;
     }[] = [];
 
-    // Process each piece individually
-    for (const piece of (pieces || []) as ContentPiece[]) {
+    for (const piece of pieces || []) {
       let bufferPostId: string | null = null;
       let bufferError: string | null = null;
 
       try {
         const caption = generateCaption(piece);
-        const mediaUrls = piece.composed_urls || [];
-        const isVideo = piece.type === "reel";
+        const mediaUrls = (piece.composed_urls as string[]) || [];
+        const isVideo = piece.type === "reel" || piece.content_subtype === "reel";
         const scheduledAt = piece.post_time || new Date().toISOString();
 
-        const result = await schedulePost({
-          profileId,
-          caption,
-          mediaUrls,
-          scheduledAt,
-          isVideo,
-        });
-
-        if (result.success && result.updates?.length > 0) {
-          bufferPostId = result.updates[0].id;
+        if (mediaUrls.length > 0) {
+          bufferPostId = await schedulePost({
+            channelId,
+            caption,
+            mediaUrls,
+            scheduledAt,
+            isVideo,
+          });
+        } else {
+          bufferError = "No composed media URLs";
         }
       } catch (err) {
         bufferError = err instanceof Error ? err.message : "Buffer scheduling failed";

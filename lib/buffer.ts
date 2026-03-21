@@ -1,6 +1,8 @@
-import { ContentPiece } from "@/types";
+// Buffer GraphQL API Client for DailyFreedomAutomated
+// Endpoint: https://api.buffer.com (GraphQL)
+// Auth: Bearer token via BUFFER_ACCESS_TOKEN env var
 
-const BUFFER_API_URL = "https://api.bufferapp.com/1";
+const BUFFER_API_URL = "https://api.buffer.com";
 
 function getHeaders() {
   return {
@@ -9,172 +11,280 @@ function getHeaders() {
   };
 }
 
-export async function getProfiles() {
-  const response = await fetch(`${BUFFER_API_URL}/profiles.json`, {
-    headers: getHeaders(),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Buffer API error ${response.status}: ${text}`);
-  }
-
-  return response.json();
+interface GraphQLResponse<T> {
+  data?: T;
+  errors?: { message: string }[];
 }
 
+async function graphql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+  const res = await fetch(BUFFER_API_URL, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Buffer API error (${res.status}): ${body}`);
+  }
+
+  const json = (await res.json()) as GraphQLResponse<T>;
+
+  if (json.errors && json.errors.length > 0) {
+    throw new Error(`Buffer GraphQL error: ${json.errors.map((e) => e.message).join(", ")}`);
+  }
+
+  if (!json.data) {
+    throw new Error("Buffer API returned no data");
+  }
+
+  return json.data;
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface BufferOrganization {
+  id: string;
+}
+
+export interface BufferChannel {
+  id: string;
+  name: string;
+  displayName: string;
+  service: string;
+  avatar: string;
+}
+
+export interface BufferPost {
+  id: string;
+  text: string;
+  createdAt?: string;
+  dueAt?: string;
+  status?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
+export async function getOrganizations(): Promise<BufferOrganization[]> {
+  const data = await graphql<{ account: { organizations: BufferOrganization[] } }>(`
+    query GetOrganizations {
+      account {
+        organizations {
+          id
+        }
+      }
+    }
+  `);
+  return data.account.organizations;
+}
+
+export async function getChannels(organizationId: string): Promise<BufferChannel[]> {
+  const data = await graphql<{ channels: BufferChannel[] }>(`
+    query GetChannels($input: ChannelsInput!) {
+      channels(input: $input) {
+        id
+        name
+        displayName
+        service
+        avatar
+      }
+    }
+  `, { input: { organizationId } });
+  return data.channels;
+}
+
+export async function getScheduledPosts(organizationId: string): Promise<BufferPost[]> {
+  const data = await graphql<{ posts: { edges: { node: BufferPost }[] } }>(`
+    query GetScheduledPosts($input: PostsInput!) {
+      posts(input: $input, first: 50) {
+        edges {
+          node {
+            id
+            text
+            createdAt
+          }
+        }
+      }
+    }
+  `, {
+    input: {
+      organizationId,
+      sort: [{ field: "dueat", direction: "asc" }],
+    },
+  });
+  return data.posts.edges.map((e) => e.node);
+}
+
+// ---------------------------------------------------------------------------
+// Mutations
+// ---------------------------------------------------------------------------
+
 interface SchedulePostParams {
-  profileId: string;
+  channelId: string;
   caption: string;
   mediaUrls: string[];
-  scheduledAt: string;
+  scheduledAt: string; // ISO 8601
   isVideo: boolean;
 }
 
-export async function schedulePost({
-  profileId,
-  caption,
-  mediaUrls,
-  scheduledAt,
-  isVideo,
-}: SchedulePostParams): Promise<{ success: boolean; updates: { id: string }[] }> {
-  const media: Record<string, string> = {};
-  if (mediaUrls.length > 0) {
-    if (isVideo) {
-      media.video = mediaUrls[0];
-    } else {
-      media.picture = mediaUrls[0];
-    }
+export async function schedulePost(params: SchedulePostParams): Promise<string> {
+  const { channelId, caption, mediaUrls, scheduledAt, isVideo } = params;
+
+  // Build assets input
+  const assets: Record<string, unknown> = {};
+  if (isVideo && mediaUrls.length > 0) {
+    assets.videos = mediaUrls.map((url) => ({ url }));
+  } else if (mediaUrls.length > 0) {
+    assets.images = mediaUrls.map((url) => ({ url }));
   }
 
-  const body = {
-    profile_ids: [profileId],
+  const mutation = `
+    mutation CreatePost($input: CreatePostInput!) {
+      createPost(input: $input) {
+        ... on PostActionSuccess {
+          post {
+            id
+            text
+          }
+        }
+        ... on MutationError {
+          message
+        }
+      }
+    }
+  `;
+
+  const input: Record<string, unknown> = {
+    channelId,
     text: caption,
-    media,
-    scheduled_at: scheduledAt,
-    now: false,
+    schedulingType: "automatic",
+    mode: "customSchedule",
+    dueAt: scheduledAt,
+    assets,
   };
 
-  const response = await fetch(`${BUFFER_API_URL}/updates/create.json`, {
-    method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Buffer API error ${response.status}: ${text}`);
-  }
-
-  return response.json();
-}
-
-export async function getScheduledPosts(profileId: string) {
-  const response = await fetch(
-    `${BUFFER_API_URL}/profiles/${profileId}/updates/pending.json`,
-    { headers: getHeaders() }
+  const data = await graphql<{ createPost: { post?: BufferPost; message?: string } }>(
+    mutation,
+    { input }
   );
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Buffer API error ${response.status}: ${text}`);
+  if (data.createPost.message) {
+    throw new Error(`Buffer createPost failed: ${data.createPost.message}`);
   }
 
-  return response.json();
+  if (!data.createPost.post) {
+    throw new Error("Buffer createPost returned no post");
+  }
+
+  console.log(`Buffer post created: ${data.createPost.post.id}`);
+  return data.createPost.post.id;
 }
 
-export async function deletePost(postId: string) {
-  const response = await fetch(
-    `${BUFFER_API_URL}/updates/${postId}/destroy.json`,
-    {
-      method: "POST",
-      headers: getHeaders(),
+export async function deletePost(postId: string): Promise<void> {
+  const mutation = `
+    mutation DeletePost($input: DeletePostInput!) {
+      deletePost(input: $input) {
+        ... on DeletePostSuccess {
+          post {
+            id
+          }
+        }
+        ... on MutationError {
+          message
+        }
+      }
     }
-  );
+  `;
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Buffer API error ${response.status}: ${text}`);
-  }
-
-  return response.json();
+  await graphql(mutation, { input: { postId } });
+  console.log(`Buffer post deleted: ${postId}`);
 }
 
-export function generateCaption(piece: ContentPiece): string {
-  const { type, hook, copy } = piece;
+// ---------------------------------------------------------------------------
+// Caption generation
+// ---------------------------------------------------------------------------
 
-  if (type === "reel") {
-    const overlayText = extractOverlayText(copy);
+interface ContentPieceForCaption {
+  type: string;
+  content_subtype?: string;
+  hook: string;
+  copy: Record<string, unknown>;
+}
+
+const PRIMARY_HASHTAGS = "#herdailyfreedom #facelessmarketing #digitalfreedom";
+const SECONDARY_HASHTAGS = [
+  "#makemoneyonline",
+  "#onlinebusiness",
+  "#contentcreator",
+  "#facelesscontent",
+  "#womeninbusiness",
+  "#digitalproducts",
+  "#passiveincome",
+  "#motivation",
+];
+
+function pickHashtags(count: number): string {
+  const shuffled = [...SECONDARY_HASHTAGS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count).join(" ");
+}
+
+export function generateCaption(piece: ContentPieceForCaption): string {
+  const subtype = piece.content_subtype || piece.type;
+  const copy = piece.copy || {};
+
+  if (subtype === "reel") {
+    const overlayText =
+      (copy.full_overlay_text as string) ||
+      (copy.hook_text as string) ||
+      piece.hook;
+
     return [
-      hook,
+      piece.hook,
       "",
-      overlayText,
+      overlayText !== piece.hook ? overlayText : "",
       "",
-      'Comment "FREEDOM" and I\'ll send you my exact strategy \u{1F511}',
+      'Comment "FREEDOM" and I\'ll send you my exact strategy 🔑',
       "",
-      "#herdailyfreedom #facelessmarketing #digitalfreedom #makemoneyonline #facelesscontent",
-    ].join("\n");
+      `${PRIMARY_HASHTAGS} ${pickHashtags(4)}`,
+    ]
+      .filter((line, i) => !(line === "" && i === 2))
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n");
   }
 
-  if (type === "carousel") {
-    const firstSlideBody = extractFirstSlideBody(copy);
+  if (subtype === "carousel") {
+    const firstSlide = Array.isArray(copy)
+      ? (copy[0] as { body?: string })
+      : null;
+    const expansion = firstSlide?.body || "";
+
     return [
-      hook,
+      piece.hook,
       "",
-      firstSlideBody,
+      expansion ? expansion.slice(0, 150) : "",
       "",
-      "Swipe to see the full breakdown \u2192",
+      "Swipe to see the full breakdown →",
       "",
-      'Comment "FREEDOM" below \u{1F447}',
+      'Comment "FREEDOM" below 👇',
       "",
-      "#herdailyfreedom #facelessmarketing #digitalfreedom #onlinebusiness #contentcreator",
-    ].join("\n");
+      `${PRIMARY_HASHTAGS} ${pickHashtags(4)}`,
+    ]
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n");
   }
 
   // single_image
-  const quoteText = extractQuoteText(copy, hook);
+  const quoteText = (copy.quote_text as string) || piece.hook;
+
   return [
     quoteText,
     "",
-    "Save this if it resonates \u{1F90D}",
+    "Save this if it resonates 🤍",
     "",
-    "#herdailyfreedom #facelessmarketing #digitalfreedom #motivation #womeninbusiness",
+    `${PRIMARY_HASHTAGS} ${pickHashtags(4)}`,
   ].join("\n");
-}
-
-function extractOverlayText(copy: Record<string, unknown> | string[]): string {
-  if (Array.isArray(copy)) {
-    return copy.join("\n");
-  }
-  if (copy && typeof copy === "object") {
-    if (typeof copy.full_overlay_text === "string") return copy.full_overlay_text;
-    if (typeof copy.body === "string") return copy.body;
-    if (typeof copy.text === "string") return copy.text;
-  }
-  return "";
-}
-
-function extractFirstSlideBody(copy: Record<string, unknown> | string[]): string {
-  if (Array.isArray(copy)) {
-    return copy[0] || "";
-  }
-  if (copy && typeof copy === "object") {
-    const slides = copy.slides as Array<{ body?: string }> | undefined;
-    if (slides && slides.length > 0 && slides[0].body) {
-      return slides[0].body;
-    }
-    if (typeof copy.body === "string") return copy.body;
-  }
-  return "";
-}
-
-function extractQuoteText(copy: Record<string, unknown> | string[], hook: string): string {
-  if (Array.isArray(copy)) {
-    return copy[0] || hook;
-  }
-  if (copy && typeof copy === "object") {
-    if (typeof copy.quote_text === "string") return copy.quote_text;
-    if (typeof copy.text === "string") return copy.text;
-    if (typeof copy.body === "string") return copy.body;
-  }
-  return hook;
 }
