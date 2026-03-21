@@ -162,7 +162,7 @@ export async function schedulePost(params: SchedulePostParams): Promise<string> 
     channelId,
     text: caption,
     schedulingType: "automatic",
-    mode: "customSchedule",
+    mode: "customScheduled",
     dueAt: scheduledAt,
     assets,
   };
