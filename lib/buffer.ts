@@ -158,6 +158,9 @@ export async function schedulePost(params: SchedulePostParams): Promise<string> 
     }
   `;
 
+  // Instagram requires post type metadata
+  const instagramType = isVideo ? "reel" : "post";
+
   const input: Record<string, unknown> = {
     channelId,
     text: caption,
@@ -165,6 +168,11 @@ export async function schedulePost(params: SchedulePostParams): Promise<string> 
     mode: "customScheduled",
     dueAt: scheduledAt,
     assets,
+    metadata: {
+      instagram: {
+        type: instagramType,
+      },
+    },
   };
 
   const data = await graphql<{ createPost: { post?: BufferPost; message?: string } }>(
