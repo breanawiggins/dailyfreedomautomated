@@ -26,14 +26,26 @@ function getNextMonday(): Date {
   return monday;
 }
 
+function isEDT(date: Date): boolean {
+  const year = date.getUTCFullYear();
+  const marchSecondSunday = new Date(Date.UTC(year, 2, 8));
+  marchSecondSunday.setUTCDate(8 + (7 - marchSecondSunday.getUTCDay()) % 7);
+  marchSecondSunday.setUTCHours(7, 0, 0, 0);
+  const novFirstSunday = new Date(Date.UTC(year, 10, 1));
+  novFirstSunday.setUTCDate(1 + (7 - novFirstSunday.getUTCDay()) % 7);
+  novFirstSunday.setUTCHours(6, 0, 0, 0);
+  return date >= marchSecondSunday && date < novFirstSunday;
+}
+
 function calculatePostTime(dayOfWeek: string, timeSlot: string): string {
   const monday = getNextMonday();
   const offset = DAY_OFFSETS[dayOfWeek] ?? 0;
   const [hours, minutes] = timeSlot.split(":").map(Number);
-  const utcHours = hours - 7;
   const postDate = new Date(monday);
   postDate.setUTCDate(postDate.getUTCDate() + offset);
-  postDate.setUTCHours(utcHours, minutes, 0, 0);
+  // New York: UTC-4 (EDT) or UTC-5 (EST)
+  const nyOffset = isEDT(postDate) ? 4 : 5;
+  postDate.setUTCHours(hours + nyOffset, minutes, 0, 0);
   return postDate.toISOString();
 }
 
