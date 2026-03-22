@@ -159,29 +159,69 @@ function swipeArrow(): CreatomateElement {
 // Public compose functions
 // ---------------------------------------------------------------------------
 
+// Detect hook style for dynamic reel font selection
+function detectHookStyle(hookText: string): "personal" | "statement" {
+  const lower = hookText.toLowerCase();
+  const personalPrefixes = [
+    "me ", "pov:", "i used to", "i made", "i started", "i was",
+    "i quit", "i create", "i batch", "i automated",
+    "woman to woman", "imagine ",
+  ];
+  const statementPrefixes = [
+    "the biggest", "nobody tells", "your reels", "you are not",
+    "still posting", "if you have been", "what if", "can you really",
+    "what does", "the algorithm", "this is why", "the truth about",
+    "stop doing",
+  ];
+
+  for (const p of statementPrefixes) {
+    if (lower.startsWith(p) || lower.includes(p)) return "statement";
+  }
+  for (const p of personalPrefixes) {
+    if (lower.startsWith(p) || lower.includes(p)) return "personal";
+  }
+  return "personal"; // default fallback
+}
+
 /** REEL — 1080×1920 mp4, video bg + overlay + hook text */
 export async function composeReel(
   videoUrl: string,
   hookText: string,
   audioUrl?: string
 ): Promise<string> {
-  // Adaptive font size: 92px for short hooks, 78px for long ones
-  const fontSize = hookText.length > 75 ? "78 px" : "92 px";
+  const hookStyle = detectHookStyle(hookText);
+  console.log(`Reel hook style: ${hookStyle} for: "${hookText.slice(0, 40)}..."`);
+
+  const textConfig = hookStyle === "statement"
+    ? {
+        font_family: "Playfair Display",
+        font_style: "italic",
+        font_size: "66 px",
+        x: "50%",
+        y: "42%",
+        width: "82%",
+        text_alignment: "center" as const,
+        shadow_color: "rgba(0,0,0,0.45)",
+        shadow_blur: "8 px",
+        line_height: "145%",
+        letter_spacing: "1%",
+      }
+    : {
+        font_family: "Poppins",
+        font_size: "68 px",
+        x: "50%",
+        y: "42%",
+        width: "84%",
+        text_alignment: "center" as const,
+        shadow_color: "rgba(0,0,0,0.45)",
+        shadow_blur: "8 px",
+        line_height: "150%",
+        letter_spacing: "2%",
+      };
 
   const elements: CreatomateElement[] = [
     bgVideo(videoUrl, 0.45),
-    textEl(hookText, {
-      font_family: "Caveat",
-      font_size: fontSize,
-      x: "50%",
-      y: "45%",
-      width: "88%",
-      text_alignment: "center",
-      shadow_color: "rgba(0,0,0,0.60)",
-      shadow_blur: "12 px",
-      line_height: "150%",
-      letter_spacing: "2%",
-    }),
+    textEl(hookText, textConfig),
   ];
 
   if (audioUrl) {
