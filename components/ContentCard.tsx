@@ -92,6 +92,7 @@ export default function ContentCard({
   const [audioUploading, setAudioUploading] = useState(false);
   const [audioRerendering, setAudioRerendering] = useState(false);
   const [audioFilename, setAudioFilename] = useState("");
+  const [audioRerendered, setAudioRerendered] = useState(false);
 
   const borderColor = statusBorderColor[piece.status] || "#E0E0E0";
   const badge = statusBadge[piece.status] || statusBadge.draft;
@@ -289,7 +290,7 @@ export default function ContentCard({
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 Re-rendering with audio...
               </div>
-            ) : audioUrl && piece.composed_urls?.length > 0 ? (
+            ) : audioRerendered ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#2E7D32] font-medium flex items-center gap-1">
                   <Music className="w-3 h-3" /> Audio included
@@ -304,6 +305,7 @@ export default function ContentCard({
                       const file = e.target.files?.[0];
                       if (!file) return;
                       setAudioUploading(true);
+                      setAudioRerendered(false);
                       const formData = new FormData();
                       formData.append("file", file);
                       formData.append("contentPieceId", piece.id);
@@ -335,6 +337,7 @@ export default function ContentCard({
                     const data = await res.json();
                     if (data.composed_urls) {
                       piece.composed_urls = data.composed_urls;
+                      setAudioRerendered(true);
                     }
                     setAudioRerendering(false);
                   }}
