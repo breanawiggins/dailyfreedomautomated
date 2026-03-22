@@ -207,8 +207,14 @@ export async function composeReel(
     letter_spacing: "1%",
   };
 
+  // When audio is provided, mute the video track so only the MP3 plays
+  const videoElement = bgVideo(videoUrl, 0.45);
+  if (audioUrl) {
+    videoElement.volume = 0;
+  }
+
   const elements: CreatomateElement[] = [
-    bgVideo(videoUrl, 0.45),
+    videoElement,
     textEl(hookText, textConfig),
   ];
 
@@ -219,8 +225,8 @@ export async function composeReel(
       track: 2,
       time: 0,
       duration: 5,
-      audio_fade_out: 0.5,
-      volume: 1,
+      audio_fade_out: 0.3,
+      volume: "200%",
     });
   }
 
