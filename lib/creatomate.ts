@@ -25,6 +25,7 @@ interface RenderComposition {
   width: number;
   height: number;
   frame_rate?: number;
+  duration?: number;
   elements: CreatomateElement[];
 }
 
@@ -228,7 +229,11 @@ export async function composeReel(
     elements.push({
       type: "audio",
       source: audioUrl,
-      volume: 0.7,
+      track: 2,
+      time: 0,
+      duration: 5,
+      audio_fade_out: 0.5,
+      volume: 0.85,
     });
   }
 
@@ -237,6 +242,7 @@ export async function composeReel(
     width: 1080,
     height: 1920,
     frame_rate: 30,
+    duration: 5,
     elements,
   });
 }
