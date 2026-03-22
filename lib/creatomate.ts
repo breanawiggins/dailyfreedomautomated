@@ -233,7 +233,7 @@ export async function composeReel(
       time: 0,
       duration: 5,
       audio_fade_out: 0.5,
-      volume: 0.85,
+      volume: 1,
     });
   }
 
