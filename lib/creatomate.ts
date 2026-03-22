@@ -193,32 +193,19 @@ export async function composeReel(
   const hookStyle = detectHookStyle(hookText);
   console.log(`Reel hook style: ${hookStyle} for: "${hookText.slice(0, 40)}..."`);
 
-  const textConfig = hookStyle === "statement"
-    ? {
-        font_family: "Playfair Display",
-        font_style: "italic",
-        font_size: "66 px",
-        x: "50%",
-        y: "42%",
-        width: "82%",
-        text_alignment: "center" as const,
-        shadow_color: "rgba(0,0,0,0.45)",
-        shadow_blur: "8 px",
-        line_height: "145%",
-        letter_spacing: "1%",
-      }
-    : {
-        font_family: "Poppins",
-        font_size: "68 px",
-        x: "50%",
-        y: "42%",
-        width: "84%",
-        text_alignment: "center" as const,
-        shadow_color: "rgba(0,0,0,0.45)",
-        shadow_blur: "8 px",
-        line_height: "150%",
-        letter_spacing: "2%",
-      };
+  const textConfig = {
+    font_family: "Playfair Display",
+    font_style: "italic",
+    font_size: hookStyle === "statement" ? "66 px" : "68 px",
+    x: "50%",
+    y: "42%",
+    width: "82%",
+    text_alignment: "center" as const,
+    shadow_color: "rgba(0,0,0,0.45)",
+    shadow_blur: "8 px",
+    line_height: "145%",
+    letter_spacing: "1%",
+  };
 
   const elements: CreatomateElement[] = [
     bgVideo(videoUrl, 0.45),
