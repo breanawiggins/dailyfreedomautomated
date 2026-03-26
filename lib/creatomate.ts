@@ -21,11 +21,12 @@ interface CreatomateElement {
 }
 
 interface RenderComposition {
-  output_format: "jpg" | "mp4";
+  output_format: "jpg" | "mp4" | "png";
   width: number;
   height: number;
   frame_rate?: number;
   duration?: number;
+  render_scale?: number;
   elements: CreatomateElement[];
 }
 
@@ -529,9 +530,10 @@ export async function composeSingleImagePost(
   );
 
   return renderComposition({
-    output_format: "jpg",
+    output_format: "png",
     width: 1080,
     height: 1350,
+    render_scale: 2,
     elements,
   });
 }

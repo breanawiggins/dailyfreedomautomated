@@ -138,7 +138,8 @@ export async function generateBackground(
       prompt,
       config: {
         numberOfImages: 1,
-        aspectRatio: "3:4", // portrait for carousels/single images (896x1280)
+        aspectRatio: "3:4",
+        imageSize: "2K", // Higher resolution output for crisp quality
       },
     });
     return response;
